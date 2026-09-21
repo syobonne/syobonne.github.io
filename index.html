@@ -33,22 +33,25 @@ font-weight:800;padding:10px 15px;font-size:14px}
 input,select,button{font:inherit}
 input,select{width:100%;padding:11px 12px;border:1px solid var(--line);
 border-radius:10px;background:#fff;color:var(--text)}
-.filters{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
-.actions{display:flex;gap:8px;margin-top:9px}
-.actions button{flex:1;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fff}
-.stats{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0 4px}
-.pill{padding:5px 9px;border-radius:999px;background:#eef1f5;color:var(--muted);font-size:12px}
-.pill b{color:var(--text)}
+.genre-buttons{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:12px}
+.genre-btn{border:1px solid #d8dce2;background:#fff;color:#444;border-radius:999px;
+padding:9px 16px;font-weight:700;font-size:14px}
+.genre-btn.active{background:#4caf63;color:#fff;border-color:#4caf63}
+.small-controls{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-top:9px}
+#genre{display:none}
+.small-controls select,.small-controls button{min-width:0;padding:9px 10px;border:1px solid var(--line);
+border-radius:9px;background:#fff;color:var(--text)}
+
 .top{display:flex;justify-content:space-between;gap:8px;align-items:end;margin:15px 2px 7px}
 .count{font-size:13px;color:var(--muted)}
 .list{display:grid;gap:8px}
-.song{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:13px 14px;position:relative}
-.title{font-size:17px;font-weight:750}
-.song-actions{display:flex;justify-content:flex-end;margin-top:-28px;margin-bottom:10px}
-.copy-btn{border:1px solid var(--line);background:#fff;color:var(--text);border-radius:8px;padding:6px 9px;font-size:12px;font-weight:700}
-.copy-btn.copied{color:var(--ok);border-color:#b9dfc9}
-.artist{color:var(--accent);font-size:14px;margin-top:3px}
-.meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.song{background:var(--panel);border-bottom:1px solid var(--line);padding:13px 0;position:relative}
+.title{font-size:17px;font-weight:750;padding-right:80px}
+.song-actions{position:absolute;right:0;top:14px}
+.copy-btn{border:0;background:#f0f1f3;color:#555;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700}
+.copy-btn.copied{color:var(--ok);background:#eaf7ee}
+.artist{color:#777;font-size:14px;margin-top:4px}
+.meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
 .tag{font-size:12px;color:var(--muted);background:#f5f6f8;border:1px solid var(--line);
 padding:4px 7px;border-radius:7px}
 .status{font-weight:700}
@@ -56,9 +59,10 @@ padding:4px 7px;border-radius:7px}
 .memo{color:#596273;font-size:13px;margin-top:7px}
 .empty{text-align:center;color:var(--muted);padding:40px 10px}
 @media(max-width:650px){
-  .filters{grid-template-columns:1fr 1fr}
-  .filters select:last-child{grid-column:1/-1}
+  .small-controls{grid-template-columns:1fr 1fr}
+  .small-controls button{grid-column:1/-1}
   h1{font-size:24px}
+  .genre-btn{padding:8px 14px}
 }
 </style>
 </head>
@@ -78,32 +82,30 @@ padding:4px 7px;border-radius:7px}
 </section>
 
 <section class="controls">
+  <div class="genre-buttons" id="genreButtons"></div>
   <div class="search">
-    <input id="q" placeholder="曲名・歌手を検索…">
+    <input id="q" placeholder="曲名 / 歌手検索">
   </div>
-  <div class="filters">
+
+  <div class="small-controls">
     <select id="status">
       <option value="">状態：すべて</option>
       <option>🔵OK</option>
       <option>🟡練習中</option>
       <option>🔴NG</option>
     </select>
-    <select id="genre"><option value="">ジャンル：すべて</option></select>
     <select id="sort">
       <option value="artist">アーティスト順</option>
       <option value="title">曲名順</option>
       <option value="pop">人気度順</option>
     </select>
+    <button id="clear">リセット</button>
   </div>
-  <div class="actions">
-    <button id="clear">検索・絞り込みをリセット</button>
-  </div>
-  <div class="stats" id="stats"></div>
 </section>
 
 <div class="top">
   <div class="count" id="count"></div>
-  <div class="count">全曲リスト</div>
+  <div class="count">曲名 / 歌手</div>
 </div>
 <main class="list" id="list"></main>
 </div>
@@ -117,10 +119,21 @@ function cls(s){return s.includes('OK')?'ok':s.includes('練習')?'practice':'ng
 function init(){
   const gs=[...new Set(songs.map(x=>x['ジャンル']).filter(Boolean))]
     .sort((a,b)=>a.localeCompare(b,'ja'));
-  gs.forEach(g=>{
-    const o=document.createElement('option');
-    o.value=g;o.textContent=g;$('genre').append(o);
+
+  const buttons=[['','すべて'], ...gs.map(g=>[g,g])];
+  $('genreButtons').innerHTML=buttons.map(([value,label],i)=>
+    `<button type="button" class="genre-btn ${i===0?'active':''}" data-genre="${esc(value)}">${esc(label)}</button>`
+  ).join('');
+
+  document.querySelectorAll('.genre-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      $('genre').value=btn.dataset.genre;
+      document.querySelectorAll('.genre-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      render();
+    });
   });
+
   render();
 }
 
@@ -145,18 +158,13 @@ function render(){
   );
 
   $('count').textContent=`${filtered.length}曲 / 全${songs.length}曲`;
-  $('stats').innerHTML=[
-    ['🔵OK',songs.filter(x=>x['リクエスト']==='🔵OK').length],
-    ['🟡練習中',songs.filter(x=>x['リクエスト']==='🟡練習中').length],
-    ['🔴NG',songs.filter(x=>x['リクエスト']==='🔴NG').length]
-  ].map(a=>`<span class="pill">${a[0]} <b>${a[1]}</b></span>`).join('');
 
-  $('list').innerHTML=filtered.length ? filtered.map(x=>`
+  $('list').innerHTML=filtered.length ? filtered.map((x,i)=>`
     <article class="song">
       <div class="title">${esc(x['曲名'])}</div>
       <div class="artist">${esc(x['アーティスト'])}</div>
       <div class="song-actions">
-        <button class="copy-btn" onclick="copySong(event, ${JSON.stringify(String(x['曲名']||''))}, ${JSON.stringify(String(x['アーティスト']||''))})">📋 コピー</button>
+        <button class="copy-btn" type="button" data-copy-index="${i}">📋</button>
       </div>
       <div class="meta">
         <span class="tag status ${cls(x['リクエスト'])}">${esc(x['リクエスト'])}</span>
@@ -167,22 +175,47 @@ function render(){
       ${x['メモ']?`<div class="memo">${esc(x['メモ'])}</div>`:''}
     </article>`).join('')
     : '<div class="empty">条件に合う曲がありません🥲</div>';
+
+  document.querySelectorAll('[data-copy-index]').forEach(btn=>{
+    btn.addEventListener('click',()=>copySong(btn,filtered[Number(btn.dataset.copyIndex)]));
+  });
 }
 
-async function copySong(event,title,artist){
-  const text = `${title} / ${artist}`;
-  const btn = event.currentTarget;
+async function copySong(btn,x){
+  if(!x) return;
+  const text = `${String(x['曲名']||'')} / ${String(x['アーティスト']||'')}`;
+  let copied=false;
+
   try{
-    await navigator.clipboard.writeText(text);
-  }catch(e){
-    const ta=document.createElement('textarea');
-    ta.value=text; document.body.appendChild(ta); ta.select();
-    document.execCommand('copy'); ta.remove();
+    if(navigator.clipboard && window.isSecureContext){
+      await navigator.clipboard.writeText(text);
+      copied=true;
+    }
+  }catch(e){}
+
+  if(!copied){
+    try{
+      const ta=document.createElement('textarea');
+      ta.value=text;
+      ta.setAttribute('readonly','');
+      ta.style.position='fixed';
+      ta.style.opacity='0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      ta.setSelectionRange(0,ta.value.length);
+      copied=document.execCommand('copy');
+      ta.remove();
+    }catch(e){}
   }
+
   const old=btn.textContent;
-  btn.textContent='✓ コピーしました';
-  btn.classList.add('copied');
-  setTimeout(()=>{btn.textContent=old;btn.classList.remove('copied')},1200);
+  btn.textContent=copied?'✓':'×';
+  btn.classList.toggle('copied',copied);
+  setTimeout(()=>{
+    btn.textContent=old;
+    btn.classList.remove('copied');
+  },1200);
 }
 
 function showRandom(){
@@ -205,9 +238,12 @@ function showRandom(){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
-['q','genre','status','sort'].forEach(id=>$(id).addEventListener('input',render));
+['q','status','sort'].forEach(id=>$(id).addEventListener('input',render));
 $('clear').onclick=()=>{
   $('q').value='';$('genre').value='';$('status').value='';$('sort').value='artist';
+  document.querySelectorAll('.genre-btn').forEach(b=>b.classList.remove('active'));
+  const all=document.querySelector('.genre-btn[data-genre=""]');
+  if(all) all.classList.add('active');
   render();
 };
 $('random').onclick=showRandom;

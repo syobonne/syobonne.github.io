@@ -116,6 +116,8 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 function cls(s){return s.includes('OK')?'ok':s.includes('練習')?'practice':'ng'}
 
+let selectedGenre = '';
+
 function init(){
   const gs=[...new Set(songs.map(x=>x['ジャンル']).filter(Boolean))]
     .sort((a,b)=>a.localeCompare(b,'ja'));
@@ -127,7 +129,7 @@ function init(){
 
   document.querySelectorAll('.genre-btn').forEach(btn=>{
     btn.addEventListener('click',()=>{
-      $('genre').value=btn.dataset.genre;
+      selectedGenre=btn.dataset.genre || '';
       document.querySelectorAll('.genre-btn').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
       render();
@@ -139,7 +141,7 @@ function init(){
 
 function render(){
   const q=$('q').value.trim().toLowerCase();
-  const g=$('genre').value;
+  const g=selectedGenre;
   const st=$('status').value;
   const so=$('sort').value;
 
@@ -240,7 +242,10 @@ function showRandom(){
 
 ['q','status','sort'].forEach(id=>$(id).addEventListener('input',render));
 $('clear').onclick=()=>{
-  $('q').value='';$('genre').value='';$('status').value='';$('sort').value='artist';
+  $('q').value='';
+  selectedGenre='';
+  $('status').value='';
+  $('sort').value='artist';
   document.querySelectorAll('.genre-btn').forEach(b=>b.classList.remove('active'));
   const all=document.querySelector('.genre-btn[data-genre=""]');
   if(all) all.classList.add('active');
